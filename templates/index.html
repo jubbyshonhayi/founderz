@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Founderz.zw — Portfolio</title>
+<link rel="stylesheet" href="../static/css/style.css" />
+</head>
+
+<body>
+<header class="container header">
+  <div class="brand">Founderz.zw</div>
+  <nav class="nav" id="nav-links">
+    <a href="/">Home</a>
+    <a href="/services">Services</a>
+    <a href="/portfolio">Portfolio</a>
+    <a href="/about">About</a>
+    <a href="#contact" class="cta">Hire Us</a>
+    <button id="nav-toggle" style="display:none;">Menu</button>
+  </nav>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <div>
+      <h1>Smart digital solutions that help businesses run better</h1>
+      <p>
+        We design and build modern digital systems — from websites to automation —
+        that improve efficiency, visibility, and growth.
+      </p>
+
+      <div class="buttons">
+        <a class="cta" href="/portfolio">See our work</a>
+        <a class="btn" href="/contacts">contact us</a>
+      </div>
+
+      <div class="services" style="margin-top:28px;">
+
+        <div class="service card">
+          <h3>Mini & Marketing Websites</h3>
+          <p>High-converting websites and landing pages designed to attract leads and customers.</p>
+        </div>
+
+        <div class="service card">
+          <h3>Full-Stack Web Systems</h3>
+          <p>Custom web applications and dashboards built to support real business operations.</p>
+        </div>
+
+        <div class="service card">
+          <h3>Business & School Systems</h3>
+          <p>Management systems for schools and organizations — portals, records, workflows, and automation.</p>
+        </div>
+
+        <div class="service card">
+          <h3>AI Integration & Automation</h3>
+          <p>Automate repetitive tasks and integrate AI tools to improve speed, accuracy, and efficiency.</p>
+        </div>
+
+        <div class="service card">
+          <h3>Deployment & Maintenance</h3>
+          <p>Secure deployment, hosting setup, updates, monitoring, and ongoing technical support.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">Book a free consultation</h3>
+      <p style="color:var(--muted);margin-bottom:12px;">
+        Start your project with a short discovery form so we understand your needs before the call.
+      </p>
+      <a class="cta" href="#contact">Book Now</a>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="margin-top:36px;">Selected Projects</h2>
+    <p style="color:var(--muted);margin-top:8px;">
+      Real projects built for businesses, schools, and startups.
+    </p>
+
+    <div class="grid">
+      <div class="thumb"><img src="../static/images/gym-fit.jpg" alt="gym site"></div>
+      <div class="thumb"><img src="../static/images/restaurant.jpg" alt="restaurant site"></div>
+      <div class="thumb"><img src="../static/images/car-rental.jpg" alt="car-rental site"></div>
+      <div class="thumb"><img src="../static/images/portifolio-mock.jpg" alt="portfolio site"></div>
+      <div class="thumb"><img src="../static/images/e-commerce.jpg" alt="E-commerce site"></div>
+      <div class="thumb"><img src="../static/images/client-dashboard.jpg" alt="client client-dashboard site"></div>
+    </div>
+  </section>
+
+  <section class="split" style="margin-top:32px;">
+    
+    <div class="card">
+      <h2>How We Work</h2>
+      <p style="color:var(--muted);margin-top:8px;">
+        Our process is simple, transparent, and focused on real results.
+      </p>
+      <ul style="margin-top:16px;color:var(--muted);line-height:1.7;">
+        <li>
+          <strong>1. Discovery & Planning</strong><br>
+          We start by understanding your business, goals, users, and challenges.
+          This ensures we build the right solution — not just a nice-looking website.
+        </li>
+        <li style="margin-top:12px;">
+          <strong>2. Solution Design</strong><br>
+          We design a clear structure, user flow, and system architecture
+          that fits your needs, whether it’s a website, dashboard, or automation.
+        </li>
+        <li style="margin-top:12px;">
+          <strong>3. Development & Testing</strong><br>
+          We build your solution using modern, scalable technologies,
+          followed by thorough testing for performance, security, and usability.
+        </li>
+        <li style="margin-top:12px;">
+          <strong>4. Deployment & Launch</strong><br>
+          Your project is deployed securely with proper configuration,
+          domain setup, and performance optimization.
+        </li>
+        <li style="margin-top:12px;">
+          <strong>5. Support & Growth</strong><br>
+          After launch, we provide maintenance, updates, and improvements
+          as your business grows.
+        </li>
+      </ul>
+    </div>
+
+
+    <div id="contact" class="contact card">
+      <h2>Start Your Project</h2>
+      <p style="color:var(--muted);margin-bottom:12px;">
+        Tell us what you’re building and we’ll guide you with the right solution.
+      </p>
+
+      <div id="formAlert"></div>
+
+      <form id="contactForm">
+        <input class="input" type="text" name="name" placeholder="Your name" required />
+        <input class="input" type="email" name="email" placeholder="Email" required />
+        <input class="input" type="text" name="phone" placeholder="Phone or WhatsApp" required />
+        <textarea class="input" name="message" style="height:100px;" placeholder="Message" required></textarea>
+        <div style="margin-top:8px;">
+          <button type="submit" class="cta">Send Message</button>
+        </div>
+      </form>
+    </div>
+
+  </section>
+
+  <div>{% include "footer.html" %}</div>
+
+</main>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+
+<script>
+document.getElementById("contactForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+
+  const form = e.target;
+  const alertBox = document.getElementById("formAlert");
+  const formData = new FormData(form);
+
+  try {
+    const response = await fetch("/contact", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    alertBox.innerHTML = `
+      <div style="margin-bottom:12px;color:#fff;background:#22c55e;padding:10px;border-radius:6px;">
+        ${data.message}
+      </div>
+    `;
+
+    setTimeout(() => {
+      alertBox.innerHTML = "";
+    }, 3000);
+
+    form.reset();
+  } catch (err) {
+    alertBox.innerHTML = `
+      <div style="margin-bottom:12px;color:#fff;background:#ef4444;padding:10px;border-radius:6px;">
+        Something went wrong. Please try again.
+      </div>
+    `;
+  }
+});
+</script>
+
+<script>
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+</script>
+
+<!-- Chat Toggle Button -->
+<button id="chat-toggle">LIVE CHAT</button>
+
+<!-- Chatbot -->
+<div id="chatbot" style="display: none;">
+  <div id="chat-header">
+    Founderz.zw Assistant
+    <button id="chat-close" style="background:none;border:none;color:white;font-weight:bold;cursor:pointer;">✕</button>
+  </div>
+  <div id="chat-body"></div>
+  <div id="chat-input">
+    <input id="chat-text" placeholder="Type a message..." />
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+</body>
+</html>

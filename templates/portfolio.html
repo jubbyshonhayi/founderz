@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfolio — Founderz.zw</title>
+<link rel="stylesheet" href="../static/css/style.css" />
+</head>
+<body>
+<header class="container header">
+  <div class="brand">Founderz.zw</div>
+  <nav class="nav">
+    <a href="/">Home</a>
+    <a href="/services">Services</a>
+    <a href="/portfolio">Portfolio</a>
+    <a href="/about">About</a>
+    <a href="/#contact" class="cta">Hire Us</a>
+  </nav>
+</header>
+
+<main class="container">
+
+  <section style="margin-top:32px;">
+    <h1>Projects</h1>
+    
+    <p style="color:var(--muted);margin-top:8px;">
+    A selection of digital solutions we’ve built for businesses and organizations.</p>
+    
+    <div class="grid" style="margin-top:16px;">
+
+    <div class="thumb">
+      <img src="../static/images/gym-fit.jpg" alt="Gym website">
+      <div class="overlay">Fitness Business Website</div>
+    </div>
+
+    <div class="thumb">
+      <img src="../static/images/restaurant.jpg" alt="Restaurant website">
+      <div class="overlay">Restaurant Website</div>
+    </div>
+
+    <div class="thumb">
+      <img src="../static/images/car-rental.jpg" alt="Car rental website">
+      <div class="overlay">Car Rental Platform</div>
+    </div>
+
+    <div class="thumb">
+      <img src="../static/images/portifolio-mock.jpg" alt="Portfolio website">
+      <div class="overlay">Personal Portfolio</div>
+    </div>
+
+    <div class="thumb">
+      <img src="../static/images/e-commerce.jpg" alt="E-commerce website">
+      <div class="overlay">E-Commerce Store</div>
+    </div>
+
+    <div class="thumb">
+      <img src="../static/images/client-dashboard.jpg" alt="Client dashboard">
+      <div class="overlay">Client Dashboard System</div>
+    </div>
+
+  </div>
+  </section>
+  
+  <div>{% include "footer.html" %}</div>
+
+</main>
+<script src="../static/js/app.js"></script>
+
+
+<!-- Chat Toggle Button -->
+<button id="chat-toggle">LIVE CHAT</button>
+
+<!-- Chatbot -->
+<div id="chatbot" style="display: none;">
+  <div id="chat-header">
+    Founderz.zw Assistant
+    <button id="chat-close" style="background:none;border:none;color:white;font-weight:bold;cursor:pointer;">✕</button>
+  </div>
+  <div id="chat-body"></div>
+  <div id="chat-input">
+    <input id="chat-text" placeholder="Type a message..." />
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+
+</body>
+</html>

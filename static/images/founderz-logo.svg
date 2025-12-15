@@ -1,0 +1,22 @@
+<svg width="320" height="56" viewBox="0 0 320 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Icon background -->
+  <rect x="0" y="0" width="56" height="56" rx="14" fill="#2563EB"></rect>
+
+  <!-- Stylized F (bold + modern cut) -->
+  <path d="M18 14H40V20H24V26H38V32H24V42H18V14Z" fill="white"></path>
+
+  <!-- Accent bar -->
+  <rect x="38" y="14" width="3" height="28" rx="1.5" fill="rgba(255,255,255,0.4)"></rect>
+
+  <!-- Brand text -->
+  <text x="76" y="38" font-family="Inter, system-ui, Arial" font-size="30" font-weight="800" letter-spacing="0.3px" fill="currentColor">
+    Founderz
+  </text>
+
+  <!-- .zw -->
+  <text x="208" y="38" font-family="Inter, system-ui, Arial" font-size="28" font-weight="700" fill="currentColor" opacity="0.75">
+    .zw
+  </text>
+
+</svg>

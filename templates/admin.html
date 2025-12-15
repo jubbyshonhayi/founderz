@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head><title>Admin Dashboard</title></head>
+<body>
+<h1>Admin Dashboard</h1>
+<a href="/logout">Logout</a>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, msg in messages %}
+      <div class="{{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<table border="1" cellpadding="6">
+  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Message</th><th>Date</th><th>Action</th></tr>
+  {% for msg in messages %}
+  <tr>
+    <td>{{ msg.name }}</td>
+    <td>{{ msg.email }}</td>
+    <td>{{ msg.phone }}</td>
+    <td>{{ msg.message }}</td>
+    <td>{{ msg.date }}</td>
+    <td><a href="/delete-message/{{ msg.id }}">Delete</a></td>
+  </tr>
+  {% endfor %}
+</table>
+</body>
+</html>

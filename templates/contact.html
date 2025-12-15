@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contact — Founderz.zw</title>
+<link rel="stylesheet" href="../static/css/style.css" />
+</head>
+<body>
+<header class="container header">
+  <div class="brand">Founderz.zw</div>
+  <nav class="nav">
+    <a href="/">Home</a>
+    <a href="/services">Services</a>
+    <a href="portfolio.html">Portfolio</a>
+    <a href="/about">About</a>
+    <a href="/#contact" class="cta">Hire Us</a>
+  </nav>
+</header>
+
+<main class="container">
+  <section style="margin-top:32px;">
+    <h1>Contact</h1>
+    <p style="color:var(--muted);">Ready to start your project? Send a message or reach us on WhatsApp.</p>
+    <div class="card" style="margin-top:16px;">
+      <h3>Email</h3>
+      <p style="color:var(--muted);">jubilentsh@gmail.com</p>
+      <h3 style="margin-top:12px;">WhatsApp</h3>
+      <p style="color:var(--muted);">+263788878312</p>
+      <a class="cta" href="https://wa.me/263788878312" target ="_blank" style="display:inline-block;margin-top:12px;">Message on WhatsApp</a>
+    </div>
+  </section>
+  
+  <div>{% include "footer.html" %}</div>
+  
+</main>
+<script src="../static/js/app.js"></script>
+
+<!-- Chat Toggle Button -->
+<button id="chat-toggle">LIVE CHAT</button>
+
+<!-- Chatbot -->
+<div id="chatbot" style="display: none;">
+  <div id="chat-header">
+    Founderz.zw Assistant
+    <button id="chat-close" style="background:none;border:none;color:white;font-weight:bold;cursor:pointer;">✕</button>
+  </div>
+  <div id="chat-body"></div>
+  <div id="chat-input">
+    <input id="chat-text" placeholder="Type a message..." />
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+
+</body>
+</html>
