@@ -40,21 +40,26 @@ ADMINS = {
 }
 
 
-# ---------------- CSV file for messages ----------------
-MESSAGES_FILE = "data/messages.csv"
-os.makedirs("data", exist_ok=True)
+# Use Render disk if available, otherwise fallback to local
+BASE_DATA_DIR = os.getenv("RENDER_DATA_DIR", "data")
 
+os.makedirs(BASE_DATA_DIR, exist_ok=True)
+
+MESSAGES_FILE = os.path.join(BASE_DATA_DIR, "messages.csv")
+CONSULT_FILE = os.path.join(BASE_DATA_DIR, "consultations.csv")
+
+# ---- Messages CSV ----
 if not os.path.exists(MESSAGES_FILE):
     with open(MESSAGES_FILE, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Name", "Email", "Phone", "Message", "Date"])
 
-CONSULT_FILE = "data/consultations.csv"
-
+# ---- Consultations CSV ----
 if not os.path.exists(CONSULT_FILE):
     with open(CONSULT_FILE, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Date", "User Message", "Intent", "Stage"])
+
 
 # ---------------- Helpers ----------------
 
