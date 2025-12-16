@@ -92,7 +92,7 @@ def init_db():
     except Exception as e:
         print("DB init failed (will retry on next request):", e)
 
-init_db()
+
 
 # ---------------- Helpers ----------------
 def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
@@ -217,14 +217,22 @@ We’ve received your message and will get back to you shortly.
     return jsonify({"status": "success", "message": "Message sent successfully! We’ll get back to you shortly."})
 
 # ---------------- Multi-admin setup ----------------
-ADMINS_PLAIN = {
-    "admin": _require_env("ADMIN_ADMIN_PASSWORD"),
-    "john": _require_env("ADMIN_JOHN_PASSWORD"),
-    "alice": _require_env("ADMIN_ALICE_PASSWORD")
-}
+def load_admins():
+    admins = {}
 
-# Pre-hash once at startup
-ADMINS = {user: generate_password_hash(pw) for user, pw in ADMINS_PLAIN.items()}
+    for user, env_key in {
+        "admin": "ADMIN_ADMIN_PASSWORD",
+        "john": "ADMIN_JOHN_PASSWORD",
+        "alice": "ADMIN_ALICE_PASSWORD"
+    }.items():
+        pw = os.getenv(env_key)
+        if pw:
+            admins[user] = generate_password_hash(pw)
+
+    return admins
+
+
+ADMINS = load_admins()
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -238,15 +246,17 @@ def login():
             return redirect("/login")
 
         hashed_pw = ADMINS.get(username)
-        if hashed_pw and check_password_hash(hashed_pw, password):
+        if not hashed_pw:
+         flash("Invalid username or password", "danger")
+         return redirect("/login")
+        if check_password_hash(hashed_pw, password):
             session.clear()
             session["logged_in"] = True
             session["username"] = username
             flash(f"Welcome, {username}!", "success")
             return redirect("/admin")
 
-        flash("Invalid username or password", "danger")
-        return redirect("/login")
+
 
     return render_template("login.html")
 
