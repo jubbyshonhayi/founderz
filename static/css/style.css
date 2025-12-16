@@ -18,7 +18,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);-webkit-font-smooth
 .brand{font-weight:700;letter-spacing:0.4px;font-size:18px;}
 .nav{display:flex;gap:18px;align-items:center;}
 .nav a{color:var(--muted);text-decoration:none;font-weight:600;}
-.cta{background:linear-gradient(90deg,var(--accent),var(--accent-2));padding:10px 16px;border-radius:8px;color:white;text-decoration:none;font-weight:700;}
+.cta{background:linear-gradient(90deg,var(--accent),var(--accent-2));cursor: pointer;padding:10px 16px;border-radius:8px;color:white;text-decoration:none;font-weight:700;}
 
 /* Hero */
 .hero{display:grid;grid-template-columns:1fr 420px;gap:40px;align-items:center;padding:40px 0;}
@@ -39,10 +39,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);-webkit-font-smooth
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-.card:hover {
-  box-shadow:0 12px 32px rgba(0,0,0,0.35);
-  transform: scale(1.08);
-}
+
 
 .card:hover h3 {
   color: var(--accent);
@@ -126,7 +123,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);-webkit-font-smooth
 }
 
 .contact input {
-  flex: 0.3;
+  flex: 0.2;
   resize: none;
 }
 

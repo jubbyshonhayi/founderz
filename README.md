@@ -30,7 +30,7 @@ Frontend:
 Backend:
 - Python (Flask)
 - Async email sending
-- CSV-based message storage
+- Supabase PostgreSQL
 
 Deployment:
 - Production-ready Flask setup

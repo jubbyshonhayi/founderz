@@ -1,5 +1,6 @@
-Flask
+Flask>=2.3,<4.0
 gunicorn
-openai
+openai>=1.0.0
 python-dotenv
 werkzeug
+psycopg2-binary
