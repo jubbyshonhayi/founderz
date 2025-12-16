@@ -15,6 +15,7 @@ from openai import OpenAI
 import psycopg2
 import psycopg2.extras
 
+
 # ---------------- OpenAI Client ----------------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -30,19 +31,6 @@ EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
-# ---------------- Multi-admin setup ----------------
-# Fail fast if any admin password is missing (SECURITY FIX)
-def _require_env(key):
-    val = os.getenv(key)
-    if not val:
-        raise RuntimeError(f"Missing required environment variable: {key}")
-    return val
-
-ADMINS = {
-    "admin": generate_password_hash(_require_env("ADMIN_ADMIN_PASSWORD")),
-    "john": generate_password_hash(_require_env("ADMIN_JOHN_PASSWORD")),
-    "alice": generate_password_hash(_require_env("ADMIN_ALICE_PASSWORD"))
-}
 
 # ---------------- Supabase / PostgreSQL setup ----------------
 DATABASE_URL = os.getenv("DATABASE_URL")  # must include sslmode=require
@@ -122,6 +110,15 @@ def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
 
     RATE_LIMIT[ip].append(now)
     return False, None
+
+# ---------------- Helper to require environment variables ----------------
+def _require_env(key: str) -> str:
+    """Get environment variable or raise an error if missing."""
+    val = os.getenv(key)
+    if not val:
+        raise RuntimeError(f"Missing required environment variable: {key}")
+    return val
+
 
 def login_required(func):
     @functools.wraps(func)
@@ -219,13 +216,29 @@ We’ve received your message and will get back to you shortly.
 
     return jsonify({"status": "success", "message": "Message sent successfully! We’ll get back to you shortly."})
 
+# ---------------- Multi-admin setup ----------------
+ADMINS_PLAIN = {
+    "admin": _require_env("ADMIN_ADMIN_PASSWORD"),
+    "john": _require_env("ADMIN_JOHN_PASSWORD"),
+    "alice": _require_env("ADMIN_ALICE_PASSWORD")
+}
+
+# Pre-hash once at startup
+ADMINS = {user: generate_password_hash(pw) for user, pw in ADMINS_PLAIN.items()}
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
 
-        if username in ADMINS and check_password_hash(ADMINS[username], password):
+        if not username or not password:
+            flash("Missing username or password", "danger")
+            return redirect("/login")
+
+        hashed_pw = ADMINS.get(username)
+        if hashed_pw and check_password_hash(hashed_pw, password):
             session.clear()
             session["logged_in"] = True
             session["username"] = username
@@ -233,6 +246,7 @@ def login():
             return redirect("/admin")
 
         flash("Invalid username or password", "danger")
+        return redirect("/login")
 
     return render_template("login.html")
 
@@ -412,6 +426,7 @@ def health():
 @app.context_processor
 def inject_year():
     return {"current_year": datetime.now().year}
+
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
