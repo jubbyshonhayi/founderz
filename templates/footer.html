@@ -1,4 +1,133 @@
-<footer class="footer">
-    <p>© {{ current_year }} Founderz.zw-Portfolio  |  Developed by Founderz.zw</p>
+<footer class="moving-footer">
+  <div class="ticker-wrap">
+
+    <!-- FADE OVERLAYS -->
+    <div class="fade fade-left"></div>
+    <div class="fade fade-right"></div>
+
+    <!-- TICKER -->
+    <div class="ticker">
+
+      <!-- CONTENT GROUP -->
+      <div class="ticker-group">
+        <p>© {{ current_year }} Founderz.zw — Digital Solutions Portfolio</p>
+        <p>🌐 End-to-end digital solutions for modern businesses</p>
+        <p>⚙️ Strategy • Development • Deployment</p>
+        <p>📈 Helping brands grow through technology & innovation</p>
+        <p>🤝 Open for partnerships, startups & enterprise projects</p>
+      </div>
+
+      <!-- GAP BETWEEN ROUNDS -->
+      <div class="ticker-spacer"></div>
+
+      <!-- DUPLICATE FOR SEAMLESS LOOP -->
+      <div class="ticker-group">
+        <p>© {{ current_year }} Founderz.zw — Digital Solutions Portfolio</p>
+        <p>🌐 End-to-end digital solutions for modern businesses</p>
+        <p>⚙️ Strategy • Development • Deployment</p>
+        <p>📈 Helping brands grow through technology & innovation</p>
+        <p>🤝 Open for partnerships, startups & enterprise projects</p>
+      </div>
+
+    </div>
     <a href="#" class="back-to-top">↑ Back to top</a>
+  </div>
 </footer>
+
+<style>
+/* FOOTER BASE */
+.moving-footer {
+  margin-top:48px;
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  background: #0f172a;
+  padding: 12px 0; 
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* WRAPPER */
+.ticker-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+/* FADE EDGES (SAFE FOR ALL BROWSERS) */
+.fade {
+  position: absolute;
+  top: 0;
+  width: 60px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fade-left {
+  left: 0;
+  background: linear-gradient(to right, #0f172a, transparent);
+}
+
+.fade-right {
+  right: 0;
+  background: linear-gradient(to left, #0f172a, transparent);
+}
+
+/* TICKER */
+.ticker {
+  display: flex;
+  width: max-content;
+  animation: scroll 22s linear infinite;
+}
+
+/* PAUSE ON HOVER */
+.moving-footer:hover .ticker {
+  animation-play-state: paused;
+}
+
+/* CONTENT */
+.ticker-group {
+  display: flex;
+}
+
+.ticker-group p {
+  margin: 0 3rem;
+  white-space: nowrap;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+/* GAP BETWEEN LOOPS */
+.ticker-spacer {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+/* ANIMATION */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* MOBILE */
+@media (max-width: 640px) {
+  .ticker-group p {
+    font-size: 13px;
+    margin: 0 2rem;
+  }
+
+  .fade {
+    width: 40px;
+  }
+
+  .ticker-spacer {
+    width: 100px;
+  }
+}
+</style>

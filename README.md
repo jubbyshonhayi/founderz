@@ -64,31 +64,12 @@ project-root/
 │
 └── README.md
 
----
-
-## Environment Variables
-
-Create a `.env` file in the project root:
-
-FLASK_ENV=production  
-SECRET_KEY=your_secret_key_here  
-
-SMTP_HOST=smtp.yourprovider.com  
-SMTP_PORT=587  
-SMTP_USER=your_email@domain.com  
-SMTP_PASS=your_email_password  
-
-RECEIVER_EMAIL=admin@founderz.zw  
-
-Important: Never commit the `.env` file to version control.
-
----
 
 ## Contact Form Flow
 
 1. User submits the contact form
 2. Request is rate-limited by IP
-3. Message is saved to messages.csv
+3. Message is saved Neon DB
 4. Admin notification email is sent
 5. User receives an instant auto-reply
 6. UI responds immediately (non-blocking)
@@ -103,7 +84,7 @@ Important: Never commit the `.env` file to version control.
   - Services information
   - Pricing ranges
   - Consultation intent
-- Automatically directs users to the contact form when needed
+
 
 ---
 

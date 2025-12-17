@@ -3,8 +3,7 @@ load_dotenv()
 
 from flask import Flask, render_template, request, redirect, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-import smtplib
-from email.message import EmailMessage
+
 from datetime import datetime
 import functools
 import os
@@ -21,6 +20,23 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------------- Flask App ----------------
 app = Flask(__name__)
+
+# ---------------- Keep-alive Ping Setup ----------------
+KEEP_ALIVE_INTERVAL = 10 * 60  # 10 minutes
+APP_URL = os.getenv("APP_URL")  
+
+def keep_alive():
+    while True:
+        try:
+            requests.get(APP_URL, timeout=5)
+            print("Keep-alive ping sent")
+        except Exception as e:
+            print("Keep-alive failed:", e)
+        time.sleep(KEEP_ALIVE_INTERVAL)
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
+# ---------------- Flask Config ----------------
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
 
 # ---------------- Rate limiting storage ----------------
@@ -33,28 +49,31 @@ RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
 
 # ---------------- Supabase / PostgreSQL setup ----------------
-DATABASE_URL = os.getenv("DATABASE_URL")  # must include sslmode=require
+DATABASE_URL = os.getenv("DATABASE_URL")  
 
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
 # Ensure SSL (Supabase requirement)
-if "sslmode=" not in DATABASE_URL:
-    DATABASE_URL += "?sslmode=require"
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+def ensure_sslmode(url):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query.setdefault("sslmode", ["require"])
+    new_query = urlencode(query, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
+DATABASE_URL = ensure_sslmode(os.getenv("DATABASE_URL"))
+
 
 def get_db():
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is not set")
+    return psycopg2.connect(
+        DATABASE_URL,
+        cursor_factory=psycopg2.extras.RealDictCursor,
+        connect_timeout=3
+    )
 
-    try:
-        return psycopg2.connect(
-            DATABASE_URL,
-            cursor_factory=psycopg2.extras.RealDictCursor,
-            connect_timeout=5
-        )
-    except Exception as e:
-        print("❌ Database connection failed:", e)
-        raise
 
 
 # ---------------- DB Init (cold-start optimized) ----------------
@@ -92,7 +111,7 @@ def init_db():
     except Exception as e:
         print("DB init failed (will retry on next request):", e)
 
-init_db()
+
 
 # ---------------- Helpers ----------------
 def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
@@ -129,25 +148,33 @@ def login_required(func):
         return func(*args, **kwargs)
     return wrapper
 
-def send_email(subject, body, to_email):
-    msg = EmailMessage()
-    msg["From"] = EMAIL_ADDRESS
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
+import requests
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.send_message(msg)
+def send_email(subject, body, to_email):
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": os.getenv("BREVO_API_KEY"),
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "sender": {"name": "Founderz", "email": EMAIL_ADDRESS},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": body
+    }
+
+    r = requests.post(url, json=data, headers=headers)
+    if r.status_code >= 400:
+        print("Email API error:", r.text)
 
 def send_email_async(subject, body, to_email):
-    def task():
-        try:
-            send_email(subject, body, to_email)
-        except Exception as e:
-            print("Async email failed:", e)
+    threading.Thread(
+        target=send_email,
+        args=(subject, body, to_email),
+        daemon=True
+    ).start()
 
-    threading.Thread(target=task, daemon=True).start()
 
 # ---------------- Routes ----------------
 @app.route("/")
@@ -156,65 +183,92 @@ def index():
 
 @app.route("/contact", methods=["POST"])
 def contact():
-    init_db()  # safe retry on cold start
-
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     if ip and "," in ip:
         ip = ip.split(",")[0].strip()
-        
+
     limited, message = is_rate_limited_ip(ip)
     if limited:
         return jsonify({"status": "error", "message": message}), 429
 
-    name = request.form.get("name")
-    email = request.form.get("email")
-    phone = request.form.get("phone")
-    message_text = request.form.get("message")
-    date_sent = datetime.now().strftime("%Y-%m-%d %H:%M")
+    data = {
+        "name": request.form.get("name"),
+        "email": request.form.get("email"),
+        "phone": request.form.get("phone"),
+        "message": request.form.get("message"),
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
 
+    data["admin_body"] = f"""
+New contact form submission
+
+Name: {data['name']}
+Email: {data['email']}
+Phone: {data['phone']}
+
+Message:
+{data['message']}
+
+Date: {data['date']}
+"""
+
+    data["user_body"] = f"""
+Hi {data['name']},
+
+Thank you for contacting Founderz.zw 👋
+We’ve received your message and will get back to you shortly.
+
+— Founderz Team
+"""
+
+    # 🔥 FIRE AND FORGET
+    threading.Thread(
+        target=contact_background_task,
+        args=(data,),
+        daemon=True
+    ).start()
+
+    # 🚀 RETURN IMMEDIATELY
+    return jsonify({
+        "status": "success",
+        "message": "Message sent successfully! We’ll get back to you shortly."
+    })
+
+def contact_background_task(data):
+    # --------- DB (non-critical) ---------
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO messages (name, email, phone, message, date)
                     VALUES (%s, %s, %s, %s, %s)
-                """, (name, email, phone, message_text, date_sent))
-        conn.commit()
+                """, (
+                    data["name"],
+                    data["email"],
+                    data["phone"],
+                    data["message"],
+                    data["date"]
+                ))
+            conn.commit()
     except Exception as e:
-        print("⚠️ Failed to save message to DB:", e)
-    # DO NOT block the user
+        print("⚠️ DB insert failed (email will still send):", e)
 
+    # --------- EMAILS (critical) ---------
+    try:
+        send_email(
+            "📩 New Website Contact Message",
+            data["admin_body"],
+            RECEIVER_EMAIL
+        )
 
-    admin_body = f"""
-New contact form submission
+        send_email(
+            "We received your message – Founderz",
+            data["user_body"],
+            data["email"]
+        )
+    except Exception as e:
+        print("❌ Email sending failed:", e)
 
-Name: {name}
-Email: {email}
-Phone: {phone}
-
-Message:
-{message_text}
-
-Date: {date_sent}
-"""
-
-    user_body = f"""
-Hi {name},
-
-Thank you for contacting Founderz.zw 👋
-
-We’ve received your message and will get back to you shortly.
-
-📩 Your message:
-"{message_text}"
-
-— Founderz Team
-"""
-
-    send_email_async("📩 New Website Contact Message", admin_body, RECEIVER_EMAIL)
-    send_email_async("We received your message – Founderz", user_body, email)
-
-    return jsonify({"status": "success", "message": "Message sent successfully! We’ll get back to you shortly."})
 
 # ---------------- Multi-admin setup ----------------
 ADMINS_PLAIN = {
@@ -261,7 +315,6 @@ def logout():
 @app.route("/admin")
 @login_required
 def admin_dashboard():
-    init_db()
 
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -299,7 +352,6 @@ def contacts():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    init_db()
 
     data = request.get_json()
     msg = data.get("message", "").strip().lower()
@@ -426,6 +478,12 @@ def health():
 @app.context_processor
 def inject_year():
     return {"current_year": datetime.now().year}
+
+
+@app.before_request
+def startup():
+    init_db()
+
 
 
 # ---------------- Run ----------------
