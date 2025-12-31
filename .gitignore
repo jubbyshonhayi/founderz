@@ -2,3 +2,10 @@
 __pycache__/
 *.pyc
 data/messages.csv
+
+
+*.exe
+static/images/
+
+
+
