@@ -76,7 +76,6 @@ def get_db():
 
 
 
-# ---------------- DB Init (cold-start optimized) ----------------
 _db_initialized = False
 
 def init_db():
@@ -130,7 +129,7 @@ def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
     RATE_LIMIT[ip].append(now)
     return False, None
 
-# ---------------- Helper to require environment variables ----------------
+
 def _require_env(key: str) -> str:
     """Get environment variable or raise an error if missing."""
     val = os.getenv(key)
@@ -221,21 +220,21 @@ We’ve received your message and will get back to you shortly.
 — Founderz Team
 """
 
-    # 🔥 FIRE AND FORGET
+    
     threading.Thread(
         target=contact_background_task,
         args=(data,),
         daemon=True
     ).start()
 
-    # 🚀 RETURN IMMEDIATELY
+
     return jsonify({
         "status": "success",
         "message": "Message sent successfully! We’ll get back to you shortly."
     })
 
 def contact_background_task(data):
-    # --------- DB (non-critical) ---------
+    
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
@@ -253,7 +252,7 @@ def contact_background_task(data):
     except Exception as e:
         print("⚠️ DB insert failed (email will still send):", e)
 
-    # --------- EMAILS (critical) ---------
+    # Send emails
     try:
         send_email(
             "📩 New Website Contact Message",
@@ -270,14 +269,13 @@ def contact_background_task(data):
         print("❌ Email sending failed:", e)
 
 
-# ---------------- Multi-admin setup ----------------
+#---------------- Admin Auth Setup ----------------
 ADMINS_PLAIN = {
     "admin": _require_env("ADMIN_ADMIN_PASSWORD"),
     "john": _require_env("ADMIN_JOHN_PASSWORD"),
     "alice": _require_env("ADMIN_ALICE_PASSWORD")
 }
 
-# Pre-hash once at startup
 ADMINS = {user: generate_password_hash(pw) for user, pw in ADMINS_PLAIN.items()}
 
 
@@ -382,7 +380,7 @@ def chat():
                 conn.commit()
     except Exception as db_err:
         print("⚠️ Consultation DB insert failed:", db_err)
-       # DO NOT block chatbot
+       # Proceed without blocking the chat response
 
 
     
@@ -469,6 +467,19 @@ def chat():
         reply = "Sorry, I couldn't process your request. Please try again later."
 
     return jsonify({"reply": reply})
+
+
+from flask import send_from_directory
+import os
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static'),
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
+
 
 @app.route("/health")
 def health():

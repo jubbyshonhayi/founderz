@@ -1,14 +1,13 @@
 <footer class="moving-footer">
   <div class="ticker-wrap">
 
-    <!-- FADE OVERLAYS -->
+    
     <div class="fade fade-left"></div>
     <div class="fade fade-right"></div>
 
-    <!-- TICKER -->
     <div class="ticker">
 
-      <!-- CONTENT GROUP -->
+
       <div class="ticker-group">
         <p>© {{ current_year }} Founderz.zw — Digital Solutions Portfolio</p>
         <p>🌐 End-to-end digital solutions for modern businesses</p>
@@ -17,10 +16,10 @@
         <p>🤝 Open for partnerships, startups & enterprise projects</p>
       </div>
 
-      <!-- GAP BETWEEN ROUNDS -->
+  
       <div class="ticker-spacer"></div>
 
-      <!-- DUPLICATE FOR SEAMLESS LOOP -->
+    
       <div class="ticker-group">
         <p>© {{ current_year }} Founderz.zw — Digital Solutions Portfolio</p>
         <p>🌐 End-to-end digital solutions for modern businesses</p>
@@ -35,7 +34,7 @@
 </footer>
 
 <style>
-/* FOOTER BASE */
+
 .moving-footer {
   margin-top:48px;
   text-align:center;
@@ -49,13 +48,12 @@
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* WRAPPER */
+
 .ticker-wrap {
   position: relative;
   overflow: hidden;
 }
 
-/* FADE EDGES (SAFE FOR ALL BROWSERS) */
 .fade {
   position: absolute;
   top: 0;
@@ -75,19 +73,18 @@
   background: linear-gradient(to left, #0f172a, transparent);
 }
 
-/* TICKER */
 .ticker {
   display: flex;
   width: max-content;
   animation: scroll 22s linear infinite;
 }
 
-/* PAUSE ON HOVER */
+
 .moving-footer:hover .ticker {
   animation-play-state: paused;
 }
 
-/* CONTENT */
+
 .ticker-group {
   display: flex;
 }
@@ -99,13 +96,12 @@
   opacity: 0.95;
 }
 
-/* GAP BETWEEN LOOPS */
+
 .ticker-spacer {
   width: 160px;
   flex-shrink: 0;
 }
 
-/* ANIMATION */
 @keyframes scroll {
   from {
     transform: translateX(0);
@@ -115,7 +111,7 @@
   }
 }
 
-/* MOBILE */
+/* Responsive adjustments */
 @media (max-width: 640px) {
   .ticker-group p {
     font-size: 13px;

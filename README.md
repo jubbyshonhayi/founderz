@@ -24,13 +24,13 @@ Founderz.zw is a modern digital solutions website built to help businesses and f
 Frontend:
 - HTML5
 - CSS3
-- JavaScript (Vanilla)
+- JavaScript 
 - SVG (Branding)
 
 Backend:
 - Python (Flask)
 - Async email sending
-- Supabase PostgreSQL
+- Neon db
 
 Deployment:
 - Production-ready Flask setup
@@ -74,7 +74,7 @@ project-root/
 5. User receives an instant auto-reply
 6. UI responds immediately (non-blocking)
 
----
+
 
 ## Chatbot
 
