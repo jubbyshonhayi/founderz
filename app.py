@@ -1,9 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
-
-from flask import Flask, render_template, request, redirect, session, flash, jsonify
+from datetime import timedelta
+from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
-
 from datetime import datetime
 import functools
 import os
@@ -13,17 +12,28 @@ from collections import defaultdict
 from openai import OpenAI
 import psycopg2
 import psycopg2.extras
-
+import requests
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 # ---------------- OpenAI Client ----------------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------------- Flask App ----------------
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+
+app.config.update(
+    SESSION_COOKIE_SECURE=True,        # Only send cookies over HTTPS (Render uses HTTPS)
+    SESSION_COOKIE_HTTPONLY=True,      # JS cannot access cookies → prevents XSS attacks
+    SESSION_COOKIE_SAMESITE="Lax",     # Prevents cross-site cookie leakage but keeps functionality
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),  # Session auto-expires
+    SESSION_REFRESH_EACH_REQUEST=True, # Extend cookie validity on active users
+)
 
 # ---------------- Keep-alive Ping Setup ----------------
 KEEP_ALIVE_INTERVAL = 10 * 60  # 10 minutes
-APP_URL = os.getenv("APP_URL")  
+APP_URL = os.getenv("APP_URL")
+
 
 def keep_alive():
     while True:
@@ -34,28 +44,43 @@ def keep_alive():
             print("Keep-alive failed:", e)
         time.sleep(KEEP_ALIVE_INTERVAL)
 
+
 threading.Thread(target=keep_alive, daemon=True).start()
 
-# ---------------- Flask Config ----------------
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
-
-# ---------------- Rate limiting storage ----------------
+# ---------------- Rate Limiting ----------------
 RATE_LIMIT = defaultdict(list)
 
-# ---------------- Email config ----------------
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
+
+def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
+    now = time.time()
+    RATE_LIMIT[ip] = [t for t in RATE_LIMIT[ip] if now - t < 3600]
+    last_minute = [t for t in RATE_LIMIT[ip] if now - t < 60]
+
+    if len(last_minute) >= per_minute:
+        wait = int(60 - (now - last_minute[0]))
+        return True, f"Too fast. Wait {wait} seconds."
+
+    if len(RATE_LIMIT[ip]) >= per_hour:
+        wait = int(3600 - (now - RATE_LIMIT[ip][0]))
+        return True, f"Hourly limit reached. Try again in {wait//60} minutes."
+
+    RATE_LIMIT[ip].append(now)
+    return False, None
 
 
-# ---------------- Supabase / PostgreSQL setup ----------------
-DATABASE_URL = os.getenv("DATABASE_URL")  
+# ---------------- Environment Helper ----------------
+def _require_env(key: str) -> str:
+    val = os.getenv(key)
+    if not val:
+        raise RuntimeError(f"Missing required environment variable: {key}")
+    return val
 
+
+# ---------------- Database Setup ----------------
+DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
-# Ensure SSL (Supabase requirement)
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 def ensure_sslmode(url):
     parsed = urlparse(url)
@@ -63,8 +88,6 @@ def ensure_sslmode(url):
     query.setdefault("sslmode", ["require"])
     new_query = urlencode(query, doseq=True)
     return urlunparse(parsed._replace(query=new_query))
-
-DATABASE_URL = ensure_sslmode(os.getenv("DATABASE_URL"))
 
 
 def get_db():
@@ -75,8 +98,8 @@ def get_db():
     )
 
 
-
 _db_initialized = False
+
 
 def init_db():
     global _db_initialized
@@ -111,43 +134,11 @@ def init_db():
         print("DB init failed (will retry on next request):", e)
 
 
+# ---------------- Email Sending ----------------
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
-# ---------------- Helpers ----------------
-def is_rate_limited_ip(ip, per_minute=3, per_hour=10):
-    now = time.time()
-    RATE_LIMIT[ip] = [t for t in RATE_LIMIT[ip] if now - t < 3600]
-    last_minute = [t for t in RATE_LIMIT[ip] if now - t < 60]
-
-    if len(last_minute) >= per_minute:
-        wait = int(60 - (now - last_minute[0]))
-        return True, f"Too fast. Wait {wait} seconds."
-
-    if len(RATE_LIMIT[ip]) >= per_hour:
-        wait = int(3600 - (now - RATE_LIMIT[ip][0]))
-        return True, f"Hourly limit reached. Try again in {wait//60} minutes."
-
-    RATE_LIMIT[ip].append(now)
-    return False, None
-
-
-def _require_env(key: str) -> str:
-    """Get environment variable or raise an error if missing."""
-    val = os.getenv(key)
-    if not val:
-        raise RuntimeError(f"Missing required environment variable: {key}")
-    return val
-
-
-def login_required(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        if not session.get("logged_in"):
-            flash("You must log in first!", "warning")
-            return redirect("/login")
-        return func(*args, **kwargs)
-    return wrapper
-
-import requests
 
 def send_email(subject, body, to_email):
     url = "https://api.brevo.com/v3/smtp/email"
@@ -167,6 +158,7 @@ def send_email(subject, body, to_email):
     if r.status_code >= 400:
         print("Email API error:", r.text)
 
+
 def send_email_async(subject, body, to_email):
     threading.Thread(
         target=send_email,
@@ -175,11 +167,53 @@ def send_email_async(subject, body, to_email):
     ).start()
 
 
-# ---------------- Routes ----------------
+# ---------------- Authentication ----------------
+ADMINS_PLAIN = {
+    "admin": _require_env("ADMIN_ADMIN_PASSWORD"),
+    "john": _require_env("ADMIN_JOHN_PASSWORD"),
+    "alice": _require_env("ADMIN_ALICE_PASSWORD")
+}
+
+ADMINS = {user: generate_password_hash(pw) for user, pw in ADMINS_PLAIN.items()}
+
+
+def login_required(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("You must log in first!", "warning")
+            return redirect("/login")
+        return func(*args, **kwargs)
+    return wrapper
+
+
+# ---------------- ROUTES ----------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/services")
+def services():
+    return render_template("services.html")
+
+
+@app.route("/portfolio")
+def portfolio():
+    return render_template("portfolio.html")
+
+
+@app.route("/contacts")
+def contacts():
+    return render_template("contact.html")
+
+
+# ---------------- Contact Form ----------------
 @app.route("/contact", methods=["POST"])
 def contact():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
@@ -220,21 +254,19 @@ We’ve received your message and will get back to you shortly.
 — Founderz Team
 """
 
-    
     threading.Thread(
         target=contact_background_task,
         args=(data,),
         daemon=True
     ).start()
 
-
     return jsonify({
         "status": "success",
         "message": "Message sent successfully! We’ll get back to you shortly."
     })
 
+
 def contact_background_task(data):
-    
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
@@ -252,7 +284,6 @@ def contact_background_task(data):
     except Exception as e:
         print("⚠️ DB insert failed (email will still send):", e)
 
-    # Send emails
     try:
         send_email(
             "📩 New Website Contact Message",
@@ -269,16 +300,7 @@ def contact_background_task(data):
         print("❌ Email sending failed:", e)
 
 
-#---------------- Admin Auth Setup ----------------
-ADMINS_PLAIN = {
-    "admin": _require_env("ADMIN_ADMIN_PASSWORD"),
-    "john": _require_env("ADMIN_JOHN_PASSWORD"),
-    "alice": _require_env("ADMIN_ALICE_PASSWORD")
-}
-
-ADMINS = {user: generate_password_hash(pw) for user, pw in ADMINS_PLAIN.items()}
-
-
+# ---------------- Admin Login ----------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -302,6 +324,7 @@ def login():
 
     return render_template("login.html")
 
+
 @app.route("/logout")
 @login_required
 def logout():
@@ -310,16 +333,17 @@ def logout():
     flash(f"{username} logged out successfully!", "success")
     return redirect("/login")
 
+
 @app.route("/admin")
 @login_required
 def admin_dashboard():
-
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM messages ORDER BY id DESC")
             messages = cur.fetchall()
 
     return render_template("admin.html", messages=messages)
+
 
 @app.route("/delete-message/<int:msg_id>")
 @login_required
@@ -332,25 +356,10 @@ def delete_message(msg_id):
     flash("Message deleted successfully!", "success")
     return redirect("/admin")
 
-@app.route("/about")
-def about():
-    return render_template("about.html")
 
-@app.route("/services")
-def services():
-    return render_template("services.html")
-
-@app.route("/portfolio")
-def portfolio():
-    return render_template("portfolio.html")
-
-@app.route("/contacts")
-def contacts():
-    return render_template("contact.html")
-
+# ---------------- Chatbot ----------------
 @app.route("/chat", methods=["POST"])
 def chat():
-
     data = request.get_json()
     msg = data.get("message", "").strip().lower()
 
@@ -362,7 +371,7 @@ def chat():
 
     consultation_intent = any(word in msg for word in consultation_keywords) or msg in affirmative_words
     stage = "conversation"
-    
+
     try:
         if consultation_intent:
             stage = "consultation_confirmed"
@@ -372,94 +381,78 @@ def chat():
                        INSERT INTO consultations (date, user_message, intent, stage)
                        VALUES (%s, %s, %s, %s)
                     """, (
-                       datetime.now().strftime("%Y-%m-%d %H:%M"),
-                       msg,
-                      "consultation",
-                      stage
-                ))
+                        datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        msg,
+                        "consultation",
+                        stage
+                    ))
                 conn.commit()
     except Exception as db_err:
         print("⚠️ Consultation DB insert failed:", db_err)
-       # Proceed without blocking the chat response
 
-
-    
     try:
         response = client.responses.create(
             model="gpt-4.1-mini",
             input=[
                 {"role": "system", "content": (
                     "You are Founderz Assistant for Founderz.zw.\n"
-                    "Founderz.zw provides digital solutinos including:\n"
-                    "- Web development (mini to full stack webss).\n"
+                    "Founderz.zw provides digital solutions including:\n"
+                    "- Web development (mini to full stack websites).\n"
                     "- School and business systems.\n"
                     "- AI and automation solutions.\n"
                     "- Deployment and maintenance services.\n\n"
                     "You are already in an ongoing conversation.\n"
                     "You DO NOT assist with coding, programming or technical advice.\n"
-                    "You ONLY discuss Founderz.zw services and NO assitance on PERSONAL NEEDS of USERS.\n\n"
-                    "You are professional, friendly, concise and sales-oriented"
+                    "You ONLY discuss Founderz.zw services and NO assistance on PERSONAL NEEDS.\n\n"
+                    "You are professional, friendly, concise and sales-oriented.\n"
                     "You guide users naturally toward a consultation without being pushy.\n"
-                    "You NEVER restart the conversation or repeat greetings once chatting has started.\n"
+                    "You NEVER restart the conversation.\n"
                     "You ALWAYS continue from the user's last message.\n\n"
                     "Behavior rules:\n"
                     "- Treat one-word replies like 'yes' or 'okay' as CONTINUATION.\n"
                     "- Maintain context at all times.\n"
                     "- Ask ONE question at a time.\n"
-                    "- Give detailed answers and examples where necessary\n"
-                    "- Avoid use of jargon or heavy technical terms\n"
-                    "- Avoid Giving code snippets or programming advice.\n"
-                    "- Avoid Giving generic AI responses.\n"
-                    "- Avoid discussing topics outside a Digital Solutions business context.\n"
-                    "- Always focus on technological solutions for businesses, companies and schools.\n"
-                    "- Do not ask questions that have already been answered.\n"
-                    "- If user says 'thanks' or 'thank you', reply with a polite closing.\n\n"
+                    "- Give detailed answers when needed.\n"
+                    "- Avoid jargon or technical terms.\n"
+                    "- Do not give code snippets.\n"
+                    "- Avoid generic AI responses.\n"
+                    "- Focus only on business technology solutions.\n"
+                    "- Do not repeat answered questions.\n"
+                    "- If user says thanks, give a polite closing.\n\n"
                     "Pricing rules:\n"
-                    "- Always give a realistic PRICE RANGE in USD.\n"
+                    "- Always give a USD price RANGE.\n"
                     "- Never give exact pricing.\n"
-                    "- Keep it simple and confidence-building.\n"
-                    " - In case the price is not mentioned in the examples below try to give realistic pricess Range starting from the very minimum.\n"
+                    "- Use realistic minimum ranges.\n"
                     "- Examples:\n"
-                    "  * simple informational sites: $20-$100\n"
+                    "  * Simple informational sites: $20–$100\n"
                     "  * Mini website: $150–$400\n"
                     "  * Business website: $400–$1,500+\n"
                     "  * School systems: $800–$3,000+\n"
                     "  * Full-stack systems: $800+\n"
-                    "  * chatbots and automation: $100-$800"
+                    "  * Chatbots/automation: $100–$800\n"
                     "  * AI solutions: $500–$1,500+\n\n"
                     "Consultation handling:\n"
-                    "- If consultation intent is detected:\n"
-                    " - Acknowledge and confirm the user's intent to book a consultation.\n"
-                    "  1. Confirm booking intent\n"
-                    "  2. Provide contact form link: /contacts\n"
-                    "  3. Explain what happens next\n"
-                    "  4. make your reply short\n\n"
-                    "Tone:\n"
-                    "- Confident\n"
-                    "- Human\n"
-                    "- Professional\n"
-                    "- Clear\n"
-                    "- Not robotic\n\n"
-                    "Services:\n"
-                    "- AI & automation\n"
-                    "- School & business systems\n"
-                    "- Full-stack & mini web development\n"
-                    "- Deployment & maintenance"
+                    "- If intent detected:\n"
+                    "  1. Confirm booking intent.\n"
+                    "  2. Provide /contacts link.\n"
+                    "  3. Explain next steps.\n"
+                    "  4. Keep it short.\n\n"
+                    "Tone: confident, human, professional, clear.\n"
+                    "Services: AI, automation, school systems, business systems, mini & full-stack web development, deployment & maintenance."
                 )},
                 {"role": "user", "content": msg}
             ]
         )
-         
+
         reply = response.output_text.strip()
         if not reply:
             raise ValueError("Empty AI response")
 
-
         if consultation_intent:
             reply += (
-                "\n\n👉 To proceed, please fill in our contact form:\n"
-                "Use the BOOK NOW button on the home page or the HIRE US button in the header.\n\n"
-                "Once submitted, our team will reach out to schedule your consultation."
+                "\n\n👉 To proceed, please fill in the contact form:\n"
+                "Click **BOOK NOW** on the homepage or **HIRE US** in the header.\n\n"
+                "Once submitted, our team will contact you to schedule your consultation."
             )
 
     except Exception as e:
@@ -469,9 +462,7 @@ def chat():
     return jsonify({"reply": reply})
 
 
-from flask import send_from_directory
-import os
-
+# ---------------- Misc ----------------
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(
@@ -494,7 +485,6 @@ def inject_year():
 @app.before_request
 def startup():
     init_db()
-
 
 
 # ---------------- Run ----------------
